@@ -10,7 +10,8 @@ function injectCSS(css: string): void {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = css;
-  document.head.appendChild(style);
+  // At document_start <head> may not exist yet; <html> always does.
+  (document.head || document.documentElement).appendChild(style);
 }
 
 function removeCSS(): void {

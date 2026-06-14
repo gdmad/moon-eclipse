@@ -35,16 +35,25 @@ function invalidateCache(): void {
 }
 
 async function broadcastToTabs(msg: MoonMessage): Promise<void> {
-    const tabs = await browser.tabs.query({});
-    for (const tab of tabs) {
-        if (tab.id != null) {
-            try {
-                await browser.tabs.sendMessage(tab.id, msg);
-            } catch {
-                // Tab may not have content script loaded — ignore
-            }
-        }
+    // Content scripts only live on http/https pages, so scope the query to
+    // avoid messaging tabs that can never have a listener. Fall back to all
+    // tabs if the filtered query is not permitted.
+    let tabs: browser.tabs.Tab[];
+    try {
+        tabs = await browser.tabs.query({
+            url: ["http://*/*", "https://*/*"],
+        });
+    } catch {
+        tabs = await browser.tabs.query({});
     }
+    // Deliver in parallel; a missing content script just rejects, ignore it.
+    await Promise.all(
+        tabs.map((tab) =>
+            tab.id != null
+                ? browser.tabs.sendMessage(tab.id, msg).catch(() => {})
+                : undefined,
+        ),
+    );
 }
 
 async function handleGetSettings(
@@ -145,8 +154,10 @@ browser.storage.onChanged.addListener(async (changes) => {
             (oldSettings.backgroundColor !== newSettings.backgroundColor ||
                 oldSettings.textColor !== newSettings.textColor)
         ) {
+            // Only refresh the cache here. The reload broadcast is already
+            // sent by handleUpdateSettings (the sole storage writer), so
+            // broadcasting again would re-inject CSS into every tab twice.
             invalidateCache();
-            await broadcastToTabs({ type: "reload" });
         }
     }
 });

@@ -1,15 +1,23 @@
 // === Moon Eclipse: CSS Rules Generator ===
 
-import { MoonSettings } from "../shared/types";
+import { MoonSettings, DEFAULTS } from "../shared/types";
 import { lighten, darken } from "./color-utils";
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/** Return value only if it is a safe 6-digit hex color, else the fallback. */
+function safeColor(value: string, fallback: string): string {
+  return HEX_COLOR.test(value) ? value : fallback;
+}
 
 /**
  * Generate a CSS string with dark-theme rules for common elements.
  * Result is cached externally; this function is pure.
  */
 export function generateCSS(settings: MoonSettings): string {
-  const bg = settings.backgroundColor;
-  const fg = settings.textColor;
+  // Defense in depth: never interpolate an unvalidated value into the rules.
+  const bg = safeColor(settings.backgroundColor, DEFAULTS.backgroundColor);
+  const fg = safeColor(settings.textColor, DEFAULTS.textColor);
 
   // Derived colors
   const tableBg = lighten(bg, 4);

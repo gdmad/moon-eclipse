@@ -31,7 +31,6 @@ src/
 └── shared/
     ├── types.ts            # MoonSettings, DEFAULTS, MoonMessage, GetSettingsResponse
     ├── storage.ts          # getSettings, updateSettings, isExcluded
-    ├── theme.ts            # lunar palette (10 CSS variable constants)
     └── settings-ui.ts      # shared UI: 3 tabs, toggle, color pickers, schedule, exclusions
 ```
 
@@ -60,6 +59,14 @@ npm run watch    # watch mode
 
 esbuild bundles 4 entry points into IIFE bundles (`format: "iife"`, target `es2020`, minified):
 `background.js`, `content.js`, `popup.js`, `options.js`.
+
+## Tests
+
+```bash
+npm test    # transpiles tests via esbuild, runs the Node built-in test runner
+```
+
+`tests/*.test.ts` use `node:test` + `node:assert` (no extra dependencies). `scripts/test.mjs` transpiles them to ESM in `.test-build/` (git-ignored) and runs `node --test`. Coverage: pure logic (`color-utils`, `css-rules`, `scheduler` with a faked clock, `storage.isExcluded`) plus a resource/load suite (`generateCSS` throughput, generated-CSS size budget, shipped bundle-size budget under 60 KB).
 
 ## Installation in Firefox
 

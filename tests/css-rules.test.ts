@@ -40,3 +40,13 @@ test("rule count stays within expected bounds", () => {
   const rules = (css.match(/}/g) || []).length;
   assert.ok(rules >= 10 && rules <= 20, `unexpected rule count: ${rules}`);
 });
+
+test("rejects an unsafe color value and falls back to a default", () => {
+  const malicious = generateCSS({
+    ...s,
+    backgroundColor: "red;}html{display:none",
+  });
+  // The injected break-out string must never reach the output.
+  assert.doesNotMatch(malicious, /display:none/);
+  assert.match(malicious, /#0d0d12!important/);
+});

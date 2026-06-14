@@ -29,6 +29,12 @@ export async function renderSettingsUI(
     // Initial render
     await refreshUI(container);
 
+    // Show the real version from the manifest (avoids hard-coded drift)
+    const versionEl = container.querySelector("#version-text");
+    if (versionEl) {
+        versionEl.textContent = "v" + browser.runtime.getManifest().version;
+    }
+
     // Pre-fill current domain in exclusions input (popup only)
     if (mode === "popup") {
         try {
@@ -546,12 +552,4 @@ function renderExclusions(container: HTMLElement, s: MoonSettings): void {
 
 function openOptions(): void {
     browser.runtime.openOptionsPage();
-}
-
-function esc(s: string): string {
-    return s
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
 }
