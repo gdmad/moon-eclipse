@@ -317,7 +317,7 @@ body {
     flex-shrink: 0;
 }
 
-.time-row input[type="number"] {
+.time-row input {
     width: 52px;
     height: 32px;
     background: var(--input);
@@ -326,16 +326,9 @@ body {
     border-radius: 6px;
     text-align: center;
     font-size: 13px;
-    -moz-appearance: textfield;
 }
 
-.time-row input[type="number"]::-webkit-inner-spin-button,
-.time-row input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.time-row input[type="number"]:focus {
+.time-row input:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px var(--glow);

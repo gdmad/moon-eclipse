@@ -150,15 +150,15 @@ function buildHTML(): string {
         <div class="moon-section-title">Time Range</div>
         <div class="time-row">
           <label>Start Time</label>
-          <input type="number" id="start-h" min="0" max="23" value="20">
+          <input type="text" inputmode="numeric" maxlength="2" id="start-h" data-max="23" value="20">
           <span class="time-sep">:</span>
-          <input type="number" id="start-m" min="0" max="59" value="0">
+          <input type="text" inputmode="numeric" maxlength="2" id="start-m" data-max="59" value="00">
         </div>
         <div class="time-row">
           <label>End Time</label>
-          <input type="number" id="end-h" min="0" max="23" value="6">
+          <input type="text" inputmode="numeric" maxlength="2" id="end-h" data-max="23" value="06">
           <span class="time-sep">:</span>
-          <input type="number" id="end-m" min="0" max="59" value="0">
+          <input type="text" inputmode="numeric" maxlength="2" id="end-m" data-max="59" value="00">
         </div>
       </div>
 
@@ -231,18 +231,17 @@ function bindEvents(container: HTMLElement): void {
         });
     });
 
-    // Schedule time inputs — truncate to 2 chars, clamp to max
+    // Schedule time inputs — keep digits only, clamp to max
     const timeInputs = ["start-h", "start-m", "end-h", "end-m"];
     timeInputs.forEach((id) => {
         const input = container.querySelector(`#${id}`) as HTMLInputElement;
         if (!input) return;
+        const max = parseInt(input.dataset.max || "23", 10);
+        // Select on focus so the first digit typed overwrites the old value.
+        input.addEventListener("focus", () => input.select());
         input.addEventListener("input", () => {
-            const max = parseInt(input.max || "23", 10);
             let val = input.value.replace(/\D/g, "").slice(0, 2);
-            if (val.length > 0) {
-                const num = parseInt(val, 10);
-                if (num > max) val = String(max);
-            }
+            if (val.length > 0 && parseInt(val, 10) > max) val = String(max);
             input.value = val;
             updateScheduleSettings(container);
         });
