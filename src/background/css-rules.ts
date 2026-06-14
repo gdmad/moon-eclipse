@@ -33,8 +33,11 @@ export function generateCSS(settings: MoonSettings): string {
     // --- Base ---
     `html,body{background-color:${bg}!important;color:${fg}!important;transition:background-color 0.15s,color 0.15s!important;}`,
 
-    // --- Text blocks ---
-    `p,li,td,th,caption,dt,dd,blockquote,article,section,aside,h1,h2,h3,h4,h5,h6,span,div{color:${fg}!important;background-color:transparent!important;}`,
+    // --- Top bars: keep header/nav solid so sticky bars stay opaque ---
+    `header,nav,[role="banner"],[role="navigation"]{background-color:${bg}!important;color:${fg}!important;border-color:${inputBorder}!important;}`,
+
+    // --- Text blocks & structural containers (transparent -> show page bg) ---
+    `p,li,td,th,caption,dt,dd,blockquote,article,section,aside,main,footer,form,ul,ol,dl,figure,figcaption,details,summary,fieldset,label,menu,h1,h2,h3,h4,h5,h6,span,div{color:${fg}!important;background-color:transparent!important;}`,
 
     // --- Tables ---
     `table,thead,tbody,tfoot{background-color:${tableBg}!important;color:${fg}!important;}`,

@@ -41,6 +41,22 @@ test("rule count stays within expected bounds", () => {
   assert.ok(rules >= 10 && rules <= 20, `unexpected rule count: ${rules}`);
 });
 
+test("top bars (header/nav) get a solid themed background", () => {
+  const css = generateCSS(s);
+  assert.match(css, /header,nav,\[role="banner"\],\[role="navigation"\]/);
+  assert.match(css, /header,nav[^}]*#0d0d12!important/);
+});
+
+test("structural containers are cleared to reveal the page background", () => {
+  const css = generateCSS(s);
+  for (const tag of ["form", "footer", "main", "ul"]) {
+    assert.ok(
+      new RegExp(`[,{]${tag}[,{]`).test(css),
+      `selector list should include <${tag}>`,
+    );
+  }
+});
+
 test("rejects an unsafe color value and falls back to a default", () => {
   const malicious = generateCSS({
     ...s,
