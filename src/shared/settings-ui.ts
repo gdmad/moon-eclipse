@@ -292,20 +292,28 @@ function setupColorInput(
     hexId: string,
     key: keyof MoonSettings,
 ): void {
-    const colorEl = container.querySelector(`#${colorId}`) as HTMLInputElement;
-    const hexEl = container.querySelector(`#${hexId}`) as HTMLInputElement;
+    const colorEl = container.querySelector(
+        `#${colorId}`,
+    ) as HTMLInputElement | null;
+    const hexEl = container.querySelector(
+        `#${hexId}`,
+    ) as HTMLInputElement | null;
 
-    if (!colorEl || !hexEl) return;
+    // The hex field is always present; the native picker (colorEl) exists only
+    // in options mode. Bind the hex field regardless so popup edits work too.
+    if (!hexEl) return;
 
-    colorEl.addEventListener("input", () => {
-        hexEl.value = colorEl.value;
-        debounceUpdate(container, key, colorEl.value);
-    });
+    if (colorEl) {
+        colorEl.addEventListener("input", () => {
+            hexEl.value = colorEl.value;
+            debounceUpdate(container, key, colorEl.value);
+        });
+    }
 
     hexEl.addEventListener("input", () => {
         const val = hexEl.value.trim();
         if (/^#[0-9a-fA-F]{6}$/.test(val)) {
-            colorEl.value = val;
+            if (colorEl) colorEl.value = val;
             debounceUpdate(container, key, val);
         }
     });
