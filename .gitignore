@@ -1,0 +1,12 @@
+node_modules/
+dist/
+release/
+*.log
+*.zip
+.DS_Store
+.env
+.env.*
+.npmrc
+*.key
+*.pem
+*.p12

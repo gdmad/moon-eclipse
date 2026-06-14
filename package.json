@@ -1,0 +1,16 @@
+{
+  "name": "moon-eclipse",
+  "version": "1.2.0",
+  "description": "Dark theme for any website — lightweight, fast, lunar-inspired.",
+  "private": true,
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "package": "npm run build && V=$(node -p \"require('./package.json').version\") && cd release && find . -name '.DS_Store' -delete && zip -r ../moon-eclipse-v$V.zip . -x '*.DS_Store'"
+  },
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^120.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.5.0"
+  }
+}
