@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
+    "test": "node scripts/test.mjs",
     "package": "npm run build && V=$(node -p \"require('./package.json').version\") && cd release && find . -name '.DS_Store' -delete && zip -r ../moon-eclipse-v$V.zip . -x '*.DS_Store'"
   },
   "devDependencies": {
