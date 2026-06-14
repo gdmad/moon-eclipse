@@ -6,8 +6,8 @@ Firefox extension (Manifest V2) that applies a dark theme to any website via CSS
 - **TypeScript**, bundler **esbuild**, no frameworks
 - Storage: `browser.storage.local` (single `"settings"` key)
 - Scheduler: `browser.alarms` (two alarms: `"schedule-on"`, `"schedule-off"`)
-- Permissions: `storage`, `alarms`, `<all_urls>`
-- Firefox-only (gecko id: `mooneclipse@example.com`)
+- Permissions: `storage`, `alarms`, `activeTab`; content script matches `http://*/*`, `https://*/*`
+- Firefox-only (gecko id UUID `{365a54a0-542e-443a-85d9-2f9e8c790029}`, declares `data_collection_permissions` = none)
 
 ## Structure
 
@@ -16,7 +16,7 @@ src/
 ├── background/
 │   ├── background.ts       # Service Worker: message handling, CSS cache, alarms, storage listener
 │   ├── css-rules.ts        # CSS string generator from settings (pure function)
-│   ├── color-utils.ts      # lighten/darken/hexToRgb/rgbToHex
+│   ├── color-utils.ts      # lighten/darken, hexToRgb/rgbToHex, rgbToHsv/hsvToRgb
 │   └── scheduler.ts        # setupSchedule, isInRange, getNextTriggerTime, overnight ranges
 ├── content/
 │   └── content.ts          # Content Script: injectCSS/removeCSS on command, runs at document_start
@@ -115,7 +115,7 @@ Cache is **not** invalidated on schedule/exclusion changes — those only affect
 | `codeBg` | `darken(bg, 6%)` |
 | `codeColor` | `lighten(fg, 10%)` |
 
-Rules cover: base (`html,body`), text blocks, tables, inputs, buttons, links, code, media (opacity 0.92), scrollbars, and `::selection`. All rules use `!important`.
+Rules cover: base (`html,body`), top bars (`header`, `nav`, `[role=banner|navigation]` — kept solid), text blocks & structural containers (transparent), tables, inputs, buttons, links, code, media (opacity 0.92), scrollbars, and `::selection`. Colors are validated as 6-digit hex (else fall back to `DEFAULTS`). All rules use `!important`.
 
 ## Schedule
 
@@ -135,7 +135,7 @@ Rules cover: base (`html,body`), text blocks, tables, inputs, buttons, links, co
 
 The popup is the only UI (there is no separate options page). Renders 3 tabs:
 1. **Theme** — toggle (enabled/disabled), 2 colors (bg + text): a swatch opens an inline custom HSV picker (`color-picker.ts`), with a synced hex input, live preview, reset button
-2. **Schedule** — toggle, start/end time (HH:MM via number inputs), status text, 24-hour timeline
+2. **Schedule** — toggle, start/end time (HH:MM via numeric text inputs, select-on-focus), status text, 24-hour timeline
 3. **Exclusions** — text input (pre-filled with the current domain) + Add button, list with × remove buttons
 
 Settings changes are debounced at **200ms** before sending to background.
@@ -148,7 +148,7 @@ UI refreshes automatically via `browser.storage.onChanged` listener (handles cro
 - Content script is passive — only listens for messages, runs at `document_start`, not in frames
 - Background is non-persistent (`"persistent": false`) — wakes only on alarm or message
 - Settings merge with DEFAULTS on every read — safe against missing keys from version upgrades
-- Final bundles: ~25KB total
+- Final bundles: ~19KB total (background + content + popup)
 
 ## AI Instructions
 

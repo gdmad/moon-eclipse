@@ -44,6 +44,7 @@ Then in Firefox: `about:debugging` > "Load Temporary Add-on" > select `release/m
 ```bash
 npm run build     # one-time build -> release/
 npm run watch     # watch mode, auto-rebuild
+npm test          # run the test suite (Node built-in runner)
 npm run package   # build + zip for release
 ```
 
