@@ -11,7 +11,7 @@ Moon Eclipse injects carefully crafted CSS rules to transform any website into a
 ## Features
 
 - One-click toggle from the popup
-- Customizable background and text colors with hex input and native color picker
+- Customizable background and text colors with a built-in HSV picker and hex input
 - Per-site exclusion list with one-click domain add
 - Daily schedule with overnight range support
 - Works instantly — no page flicker
@@ -60,9 +60,8 @@ npm run package   # build + zip for release
 src/
   background/   # Service Worker, CSS generator, color utils, scheduler
   content/      # Content script — injects/removes <style> tag
-  popup/        # 350x500px popup UI
-  options/      # Full settings page
-  shared/       # Types, storage, theme palette, shared UI component
+  popup/        # 350x500px popup UI (the only UI surface)
+  shared/       # Types, storage, custom color picker, settings UI component
 ```
 
 ## Permissions

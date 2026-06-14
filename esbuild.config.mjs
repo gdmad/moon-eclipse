@@ -1,5 +1,5 @@
 import * as esbuild from "esbuild";
-import { cpSync, existsSync, mkdirSync } from "fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -19,7 +19,6 @@ const entryPoints = {
   background: "src/background/background.ts",
   content: "src/content/content.ts",
   popup: "src/popup/popup.ts",
-  options: "src/options/options.ts",
 };
 
 // Files to copy from project root to release/ after build
@@ -27,8 +26,6 @@ const STATIC_FILES = [
   "manifest.json",
   "src/popup/popup.html",
   "src/popup/popup.css",
-  "src/options/options.html",
-  "src/options/options.css",
 ];
 
 function copyStatic() {
@@ -50,6 +47,9 @@ function copyStatic() {
 
 async function build() {
   try {
+    // Start clean so removed entry points / static files never linger.
+    rmSync(join(__dirname, "release"), { recursive: true, force: true });
+
     const ctx = await esbuild.context({
       ...common,
       entryPoints,

@@ -1,33 +1,22 @@
-// === Moon Eclipse: Shared Settings UI Component ===
+// === Moon Eclipse: Popup Settings UI ===
 
 import type { MoonSettings, MoonMessage, GetSettingsResponse } from "./types";
 import { getSettings } from "./storage";
 import { isInRange } from "../background/scheduler";
 import { createColorPicker, type ColorPicker } from "./color-picker";
 
-type UIMode = "popup" | "options";
-
 let currentSettings: MoonSettings | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-export async function renderSettingsUI(
-    container: HTMLElement,
-    mode: UIMode,
-): Promise<void> {
+export async function renderSettingsUI(container: HTMLElement): Promise<void> {
     currentSettings = await getSettings();
 
-    // Minimal internal CSS for layout that depends on mode
     const style = document.createElement("style");
-    style.textContent = getBaseCSS(mode);
+    style.textContent = getBaseCSS();
     document.head.appendChild(style);
 
-    // Build DOM
-    container.innerHTML = buildHTML(mode);
-
-    // Bind events
-    bindEvents(container, mode);
-
-    // Initial render
+    container.innerHTML = buildHTML();
+    bindEvents(container);
     await refreshUI(container);
 
     // Show the real version from the manifest (avoids hard-coded drift)
@@ -36,31 +25,29 @@ export async function renderSettingsUI(
         versionEl.textContent = "v" + browser.runtime.getManifest().version;
     }
 
-    // Pre-fill current domain in exclusions input (popup only)
-    if (mode === "popup") {
-        try {
-            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-            const url = tabs[0]?.url;
-            if (!url) return;
-            if (!url.startsWith("http://") && !url.startsWith("https://")) return;
-            const hostname = new URL(url).hostname;
-            if (!hostname) return;
-            const input = container.querySelector("#excl-input") as HTMLInputElement;
-            if (input) {
-                input.value = hostname;
-            }
-        } catch {
-            // Non-parseable URL, skip
-        }
+    // Pre-fill the current domain in the exclusions input
+    try {
+        const tabs = await browser.tabs.query({
+            active: true,
+            currentWindow: true,
+        });
+        const url = tabs[0]?.url;
+        if (!url) return;
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return;
+        const hostname = new URL(url).hostname;
+        if (!hostname) return;
+        const input = container.querySelector("#excl-input") as HTMLInputElement;
+        if (input) input.value = hostname;
+    } catch {
+        // Non-parseable URL, skip
     }
 }
 
-function getBaseCSS(mode: UIMode): string {
-    const panelPad = mode === "popup" ? "14px 16px" : "24px 0";
+function getBaseCSS(): string {
     return `
     .moon-section { margin-bottom: 16px; }
     .moon-section-title {
-      font-size: ${mode === "popup" ? "11px" : "12px"};
+      font-size: 11px;
       color: var(--text2);
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -95,21 +82,7 @@ function getBaseCSS(mode: UIMode): string {
   `;
 }
 
-function buildHTML(mode: UIMode): string {
-    const colorPickerHTML = mode === "popup"
-        ? `
-          <div class="color-open-btn" id="color-open-bg" title="Pick a color">
-            <span class="color-preview" id="color-preview-bg"></span>
-          </div>`
-        : '<input type="color" id="color-bg">';
-
-    const colorPickerFgHTML = mode === "popup"
-        ? `
-          <div class="color-open-btn" id="color-open-fg" title="Pick a color">
-            <span class="color-preview" id="color-preview-fg"></span>
-          </div>`
-        : '<input type="color" id="color-fg">';
-
+function buildHTML(): string {
     return `
     <div class="header">
       <span class="logo">🌑</span>
@@ -137,18 +110,22 @@ function buildHTML(mode: UIMode): string {
         <div class="color-row">
           <div class="color-label">Background Color</div>
           <div class="color-inputs">
-            ${colorPickerHTML}
+            <div class="color-open-btn" id="color-open-bg" title="Pick a color">
+              <span class="color-preview" id="color-preview-bg"></span>
+            </div>
             <input type="text" id="hex-bg" maxlength="7" placeholder="#0d0d12">
           </div>
-          ${mode === "popup" ? '<div class="cp-pop moon-hidden" id="cp-pop-bg"></div>' : ""}
+          <div class="cp-pop moon-hidden" id="cp-pop-bg"></div>
         </div>
         <div class="color-row">
           <div class="color-label">Text Color</div>
           <div class="color-inputs">
-            ${colorPickerFgHTML}
+            <div class="color-open-btn" id="color-open-fg" title="Pick a color">
+              <span class="color-preview" id="color-preview-fg"></span>
+            </div>
             <input type="text" id="hex-fg" maxlength="7" placeholder="#d0d0d8">
           </div>
-          ${mode === "popup" ? '<div class="cp-pop moon-hidden" id="cp-pop-fg"></div>' : ""}
+          <div class="cp-pop moon-hidden" id="cp-pop-fg"></div>
         </div>
       </div>
 
@@ -206,12 +183,11 @@ function buildHTML(mode: UIMode): string {
 
     <div class="footer">
       <span id="version-text">v1.0.0</span>
-      ${mode === "popup" ? '<a id="open-options">Open Settings</a>' : ""}
     </div>
   `;
 }
 
-function bindEvents(container: HTMLElement, mode: UIMode): void {
+function bindEvents(container: HTMLElement): void {
     // Tab switching
     container.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -235,31 +211,24 @@ function bindEvents(container: HTMLElement, mode: UIMode): void {
     toggleSchedule?.addEventListener("change", () => {
         const enabled = toggleSchedule.checked;
         const editor = container.querySelector("#schedule-editor")!;
-        if (enabled) {
-            editor.classList.remove("moon-hidden");
-        } else {
-            editor.classList.add("moon-hidden");
-        }
+        editor.classList.toggle("moon-hidden", !enabled);
         updateScheduleSettings(container);
     });
 
-    // Popup color swatches open an inline custom picker (no native dialog)
-    if (mode === "popup") {
-        setupPopupPicker(container, "backgroundColor", "color-open-bg", "cp-pop-bg", "hex-bg", "color-preview-bg");
-        setupPopupPicker(container, "textColor", "color-open-fg", "cp-pop-fg", "hex-fg", "color-preview-fg");
-    }
+    // Color swatches open an inline custom picker (no native dialog)
+    setupPicker(container, "backgroundColor", "color-open-bg", "cp-pop-bg", "hex-bg", "color-preview-bg");
+    setupPicker(container, "textColor", "color-open-fg", "cp-pop-fg", "hex-fg", "color-preview-fg");
 
-    // Color inputs
-    setupColorInput(container, "color-bg", "hex-bg", "backgroundColor");
-    setupColorInput(container, "color-fg", "hex-fg", "textColor");
+    // Hex text inputs
+    setupHexInput(container, "hex-bg", "backgroundColor");
+    setupHexInput(container, "hex-fg", "textColor");
 
     // Reset
     container.querySelector("#btn-reset")?.addEventListener("click", () => {
-        const defaults = {
+        applySettings(container, {
             backgroundColor: "#0d0d12",
             textColor: "#d0d0d8",
-        };
-        applySettings(container, defaults as Partial<MoonSettings>);
+        });
     });
 
     // Schedule time inputs — truncate to 2 chars, clamp to max
@@ -289,13 +258,7 @@ function bindEvents(container: HTMLElement, mode: UIMode): void {
         }
     });
 
-    // Open options
-    container.querySelector("#open-options")?.addEventListener("click", (e) => {
-        e.preventDefault();
-        openOptions();
-    });
-
-    // Listen for storage changes to refresh UI
+    // Listen for storage changes to refresh UI (cross-context sync)
     browser.storage.onChanged.addListener((changes) => {
         if (changes.settings) {
             currentSettings = changes.settings.newValue as MoonSettings;
@@ -315,40 +278,22 @@ function switchTab(container: HTMLElement, tab: string): void {
     });
 }
 
-function setupColorInput(
+function setupHexInput(
     container: HTMLElement,
-    colorId: string,
     hexId: string,
     key: keyof MoonSettings,
 ): void {
-    const colorEl = container.querySelector(
-        `#${colorId}`,
-    ) as HTMLInputElement | null;
-    const hexEl = container.querySelector(
-        `#${hexId}`,
-    ) as HTMLInputElement | null;
-
-    // The hex field is always present; the native picker (colorEl) exists only
-    // in options mode. Bind the hex field regardless so popup edits work too.
+    const hexEl = container.querySelector(`#${hexId}`) as HTMLInputElement | null;
     if (!hexEl) return;
-
-    if (colorEl) {
-        colorEl.addEventListener("input", () => {
-            hexEl.value = colorEl.value;
-            debounceUpdate(container, key, colorEl.value);
-        });
-    }
-
     hexEl.addEventListener("input", () => {
         const val = hexEl.value.trim();
         if (/^#[0-9a-fA-F]{6}$/.test(val)) {
-            if (colorEl) colorEl.value = val;
             debounceUpdate(container, key, val);
         }
     });
 }
 
-function setupPopupPicker(
+function setupPicker(
     container: HTMLElement,
     key: "backgroundColor" | "textColor",
     openId: string,
@@ -425,8 +370,7 @@ async function sendMessage(
 
 function updateScheduleSettings(container: HTMLElement): void {
     const h1 =
-        (container.querySelector("#start-h") as HTMLInputElement)?.value ||
-        "20";
+        (container.querySelector("#start-h") as HTMLInputElement)?.value || "20";
     const m1 =
         (container.querySelector("#start-m") as HTMLInputElement)?.value || "0";
     const h2 =
@@ -496,23 +440,18 @@ async function refreshUI(container: HTMLElement): Promise<void> {
     ) as HTMLInputElement;
     if (toggleEnabled) toggleEnabled.checked = s.enabled;
 
-    // Colors
-    const colorBg = container.querySelector("#color-bg") as HTMLInputElement;
+    // Colors: hex fields + preview swatches
     const hexBg = container.querySelector("#hex-bg") as HTMLInputElement;
-    const colorFg = container.querySelector("#color-fg") as HTMLInputElement;
     const hexFg = container.querySelector("#hex-fg") as HTMLInputElement;
-    if (colorBg) colorBg.value = s.backgroundColor;
     if (hexBg) hexBg.value = s.backgroundColor;
-    if (colorFg) colorFg.value = s.textColor;
     if (hexFg) hexFg.value = s.textColor;
 
-    // Color preview swatches (popup mode)
     const previewBg = container.querySelector("#color-preview-bg") as HTMLElement;
     const previewFg = container.querySelector("#color-preview-fg") as HTMLElement;
     if (previewBg) previewBg.style.backgroundColor = s.backgroundColor;
     if (previewFg) previewFg.style.backgroundColor = s.textColor;
 
-    // Preview
+    // Live text preview
     const preview = container.querySelector("#preview-block") as HTMLElement;
     if (preview) {
         preview.style.backgroundColor = s.backgroundColor;
@@ -525,14 +464,8 @@ async function refreshUI(container: HTMLElement): Promise<void> {
     ) as HTMLInputElement;
     if (toggleSchedule) toggleSchedule.checked = s.scheduleEnabled;
 
-    const editor = container.querySelector("#schedule-editor")!;
-    if (editor) {
-        if (s.scheduleEnabled) {
-            editor.classList.remove("moon-hidden");
-        } else {
-            editor.classList.add("moon-hidden");
-        }
-    }
+    const editor = container.querySelector("#schedule-editor");
+    if (editor) editor.classList.toggle("moon-hidden", !s.scheduleEnabled);
 
     const [sh, sm] = s.scheduleStart.split(":");
     const [eh, em] = s.scheduleEnd.split(":");
@@ -560,10 +493,7 @@ async function refreshUI(container: HTMLElement): Promise<void> {
         }
     }
 
-    // Timeline
     renderTimeline(container, s);
-
-    // Exclusions
     renderExclusions(container, s);
 }
 
@@ -577,7 +507,11 @@ function renderTimeline(container: HTMLElement, s: MoonSettings): void {
     timeline.textContent = "";
     for (let h = 0; h < 24; h++) {
         const hour = document.createElement("div");
-        hour.className = "timeline-hour" + (s.scheduleEnabled && isHourInRange(h, startMin, endMin) ? " active" : "");
+        hour.className =
+            "timeline-hour" +
+            (s.scheduleEnabled && isHourInRange(h, startMin, endMin)
+                ? " active"
+                : "");
         hour.title = `${h}:00`;
         timeline.appendChild(hour);
     }
@@ -623,15 +557,11 @@ function renderExclusions(container: HTMLElement, s: MoonSettings): void {
 
         const btn = document.createElement("button");
         btn.className = "remove-btn";
-        btn.textContent = "\u2715";
+        btn.textContent = "✕";
         btn.addEventListener("click", () => removeExclusion(container, domain));
 
         li.appendChild(span);
         li.appendChild(btn);
         list.appendChild(li);
     }
-}
-
-function openOptions(): void {
-    browser.runtime.openOptionsPage();
 }

@@ -22,17 +22,13 @@ src/
 │   └── content.ts          # Content Script: injectCSS/removeCSS on command, runs at document_start
 ├── popup/
 │   ├── popup.html          # 350×500px (min-height: 400, max-height: 500)
-│   ├── popup.ts            # entry point → renderSettingsUI("popup")
+│   ├── popup.ts            # entry point → renderSettingsUI()
 │   └── popup.css           # compact layout
-├── options/
-│   ├── options.html        # fullscreen (max-width: 640px centered)
-│   ├── options.ts          # entry point → renderSettingsUI("options")
-│   └── options.css         # spacious layout
 └── shared/
     ├── types.ts            # MoonSettings, DEFAULTS, MoonMessage, GetSettingsResponse
     ├── storage.ts          # getSettings, updateSettings, isExcluded
     ├── color-picker.ts     # custom in-popup HSV picker (SV square + hue slider), no native dialog
-    └── settings-ui.ts      # shared UI: 3 tabs, toggle, color pickers, schedule, exclusions
+    └── settings-ui.ts      # popup UI: 3 tabs, toggle, color picker, schedule, exclusions
 ```
 
 ## Default Settings
@@ -58,8 +54,8 @@ npm run build    # one-time build → release/dist/
 npm run watch    # watch mode
 ```
 
-esbuild bundles 4 entry points into IIFE bundles (`format: "iife"`, target `es2020`, minified):
-`background.js`, `content.js`, `popup.js`, `options.js`.
+esbuild bundles 3 entry points into IIFE bundles (`format: "iife"`, target `es2020`, minified):
+`background.js`, `content.js`, `popup.js`.
 
 ## Tests
 
@@ -80,8 +76,8 @@ Full message type union (`MoonMessage`):
 ```typescript
 type MoonMessage =
   | { type: "getSettings"; hostname: string }   // Content Script → BG
-  | { type: "updateSettings"; changes: Partial<MoonSettings> } // Popup/Options → BG
-  | { type: "toggle" }                           // Popup/Options → BG
+  | { type: "updateSettings"; changes: Partial<MoonSettings> } // Popup → BG
+  | { type: "toggle" }                           // Popup → BG
   | { type: "enable" }                           // BG → Content Scripts (broadcast)
   | { type: "disable" }                          // BG → Content Scripts (broadcast)
   | { type: "reload" };                          // BG → Content Scripts (broadcast)
@@ -94,9 +90,9 @@ type MoonMessage =
 
 Flow:
 - **Content Script** → BG: `{ type: "getSettings", hostname }` on page load — receives CSS + shouldApply
-- **Popup/Options** → BG: `{ type: "updateSettings", changes }` — settings saved, then `"reload"` broadcast
+- **Popup** → BG: `{ type: "updateSettings", changes }` — settings saved, then `"reload"` broadcast
 - **Popup** → BG: `{ type: "toggle" }` — toggles enabled state, then `"enable"` or `"disable"` broadcast
-- **BG** → Content Scripts: `"enable"`, `"disable"`, `"reload"` — broadcast to all tabs via `browser.tabs.query({})`
+- **BG** → Content Scripts: `"enable"`, `"disable"`, `"reload"` — broadcast in parallel to http/https tabs (`browser.tabs.query({ url: [...] })`, falls back to all tabs)
 
 ## CSS Cache
 
@@ -137,16 +133,14 @@ Rules cover: base (`html,body`), text blocks, tables, inputs, buttons, links, co
 
 ## UI (`settings-ui.ts`)
 
-Shared component used by both popup and options. Renders 3 tabs:
-1. **Theme** — toggle (enabled/disabled), 2 color pickers (bg + text) with hex input sync, live preview, reset button
+The popup is the only UI (there is no separate options page). Renders 3 tabs:
+1. **Theme** — toggle (enabled/disabled), 2 colors (bg + text): a swatch opens an inline custom HSV picker (`color-picker.ts`), with a synced hex input, live preview, reset button
 2. **Schedule** — toggle, start/end time (HH:MM via number inputs), status text, 24-hour timeline
-3. **Exclusions** — text input + Add button, list with × remove buttons
+3. **Exclusions** — text input (pre-filled with the current domain) + Add button, list with × remove buttons
 
 Settings changes are debounced at **200ms** before sending to background.
 
-UI refreshes automatically via `browser.storage.onChanged` listener (handles cross-tab sync).
-
-Popup shows an "Open Settings" link → `browser.runtime.openOptionsPage()`.
+UI refreshes automatically via `browser.storage.onChanged` listener (handles cross-context sync).
 
 ## Key Guarantees
 
