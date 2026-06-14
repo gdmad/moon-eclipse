@@ -31,6 +31,7 @@ src/
 └── shared/
     ├── types.ts            # MoonSettings, DEFAULTS, MoonMessage, GetSettingsResponse
     ├── storage.ts          # getSettings, updateSettings, isExcluded
+    ├── color-picker.ts     # custom in-popup HSV picker (SV square + hue slider), no native dialog
     └── settings-ui.ts      # shared UI: 3 tabs, toggle, color pickers, schedule, exclusions
 ```
 

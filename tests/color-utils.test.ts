@@ -5,6 +5,8 @@ import {
   rgbToHex,
   lighten,
   darken,
+  rgbToHsv,
+  hsvToRgb,
 } from "../src/background/color-utils";
 
 test("hexToRgb parses 6-digit hex", () => {
@@ -33,4 +35,21 @@ test("darken: 0% is identity, 100% is black", () => {
 test("lighten raises channel values, darken lowers them", () => {
   assert.ok(hexToRgb(lighten("#202020", 50)).r > 0x20);
   assert.ok(hexToRgb(darken("#202020", 50)).r < 0x20);
+});
+
+test("rgbToHsv maps primary colors correctly", () => {
+  assert.deepEqual(rgbToHsv(255, 0, 0), { h: 0, s: 1, v: 1 });
+  assert.deepEqual(rgbToHsv(0, 0, 0), { h: 0, s: 0, v: 0 });
+  const white = rgbToHsv(255, 255, 255);
+  assert.equal(white.s, 0);
+  assert.equal(white.v, 1);
+});
+
+test("hsv <-> rgb round-trips to the same hex", () => {
+  for (const hex of ["#ff0000", "#00ff00", "#0000ff", "#808080", "#0d0d12"]) {
+    const { r, g, b } = hexToRgb(hex);
+    const { h, s, v } = rgbToHsv(r, g, b);
+    const back = hsvToRgb(h, s, v);
+    assert.equal(rgbToHex(back.r, back.g, back.b), hex);
+  }
 });

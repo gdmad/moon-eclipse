@@ -3,6 +3,7 @@
 import type { MoonSettings, MoonMessage, GetSettingsResponse } from "./types";
 import { getSettings } from "./storage";
 import { isInRange } from "../background/scheduler";
+import { createColorPicker, type ColorPicker } from "./color-picker";
 
 type UIMode = "popup" | "options";
 
@@ -67,20 +68,44 @@ function getBaseCSS(mode: UIMode): string {
       font-weight: 600;
     }
     .moon-hidden { display: none !important; }
+
+    .cp-pop { margin-top: 10px; }
+    .cp { width: 100%; }
+    .cp-sv {
+      position: relative; width: 100%; height: 96px;
+      border-radius: 6px; cursor: crosshair; touch-action: none;
+    }
+    .cp-sv-cur {
+      position: absolute; width: 12px; height: 12px;
+      border: 2px solid #fff; border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5); pointer-events: none;
+    }
+    .cp-hue {
+      position: relative; width: 100%; height: 14px; margin-top: 10px;
+      border-radius: 7px; cursor: pointer; touch-action: none;
+      background: linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);
+    }
+    .cp-hue-cur {
+      position: absolute; top: 50%; width: 8px; height: 18px;
+      border: 2px solid #fff; border-radius: 3px;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5); pointer-events: none;
+    }
   `;
 }
 
 function buildHTML(mode: UIMode): string {
     const colorPickerHTML = mode === "popup"
         ? `
-          <div class="color-open-btn" id="color-open-bg" title="Open Settings to pick a color">
+          <div class="color-open-btn" id="color-open-bg" title="Pick a color">
             <span class="color-preview" id="color-preview-bg"></span>
           </div>`
         : '<input type="color" id="color-bg">';
 
     const colorPickerFgHTML = mode === "popup"
         ? `
-          <div class="color-open-btn" id="color-open-fg" title="Open Settings to pick a color">
+          <div class="color-open-btn" id="color-open-fg" title="Pick a color">
             <span class="color-preview" id="color-preview-fg"></span>
           </div>`
         : '<input type="color" id="color-fg">';
@@ -115,6 +140,7 @@ function buildHTML(mode: UIMode): string {
             ${colorPickerHTML}
             <input type="text" id="hex-bg" maxlength="7" placeholder="#0d0d12">
           </div>
+          ${mode === "popup" ? '<div class="cp-pop moon-hidden" id="cp-pop-bg"></div>' : ""}
         </div>
         <div class="color-row">
           <div class="color-label">Text Color</div>
@@ -122,6 +148,7 @@ function buildHTML(mode: UIMode): string {
             ${colorPickerFgHTML}
             <input type="text" id="hex-fg" maxlength="7" placeholder="#d0d0d8">
           </div>
+          ${mode === "popup" ? '<div class="cp-pop moon-hidden" id="cp-pop-fg"></div>' : ""}
         </div>
       </div>
 
@@ -216,9 +243,11 @@ function bindEvents(container: HTMLElement, mode: UIMode): void {
         updateScheduleSettings(container);
     });
 
-    // Open options from popup color pickers
-    container.querySelector("#color-open-bg")?.addEventListener("click", openOptions);
-    container.querySelector("#color-open-fg")?.addEventListener("click", openOptions);
+    // Popup color swatches open an inline custom picker (no native dialog)
+    if (mode === "popup") {
+        setupPopupPicker(container, "backgroundColor", "color-open-bg", "cp-pop-bg", "hex-bg", "color-preview-bg");
+        setupPopupPicker(container, "textColor", "color-open-fg", "cp-pop-fg", "hex-fg", "color-preview-fg");
+    }
 
     // Color inputs
     setupColorInput(container, "color-bg", "hex-bg", "backgroundColor");
@@ -316,6 +345,51 @@ function setupColorInput(
             if (colorEl) colorEl.value = val;
             debounceUpdate(container, key, val);
         }
+    });
+}
+
+function setupPopupPicker(
+    container: HTMLElement,
+    key: "backgroundColor" | "textColor",
+    openId: string,
+    popId: string,
+    hexId: string,
+    previewId: string,
+): void {
+    const openBtn = container.querySelector(`#${openId}`) as HTMLElement | null;
+    const pop = container.querySelector(`#${popId}`) as HTMLElement | null;
+    const hexEl = container.querySelector(`#${hexId}`) as HTMLInputElement | null;
+    const preview = container.querySelector(`#${previewId}`) as HTMLElement | null;
+    if (!openBtn || !pop || !hexEl) return;
+
+    let picker: ColorPicker | null = null;
+
+    openBtn.addEventListener("click", () => {
+        const willOpen = pop.classList.contains("moon-hidden");
+        // Collapse any picker that is currently open (only one at a time).
+        container
+            .querySelectorAll(".cp-pop")
+            .forEach((p) => p.classList.add("moon-hidden"));
+        if (!willOpen) return;
+
+        const current =
+            hexEl.value && /^#[0-9a-fA-F]{6}$/.test(hexEl.value)
+                ? hexEl.value
+                : currentSettings
+                  ? (currentSettings[key] as string)
+                  : "#000000";
+
+        if (!picker) {
+            picker = createColorPicker(current, (hex) => {
+                hexEl.value = hex;
+                if (preview) preview.style.backgroundColor = hex;
+                debounceUpdate(container, key, hex);
+            });
+            pop.appendChild(picker.el);
+        } else {
+            picker.setHex(current);
+        }
+        pop.classList.remove("moon-hidden");
     });
 }
 
