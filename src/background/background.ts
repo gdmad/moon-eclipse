@@ -7,7 +7,7 @@ import {
 } from "../shared/types";
 import { getSettings, updateSettings, isExcluded } from "../shared/storage";
 import { generateCSS } from "./css-rules";
-import { setupSchedule, isInRange } from "./scheduler";
+import { setupSchedule, isInRange, resolveShouldApply } from "./scheduler";
 
 // Cached CSS — regenerated only when colors change
 let cachedCSS = "";
@@ -58,12 +58,15 @@ async function broadcastToTabs(msg: MoonMessage): Promise<void> {
 
 async function handleGetSettings(
     hostname: string,
+    prefersDark: boolean,
 ): Promise<GetSettingsResponse> {
     const settings = await getSettings();
     const css = await getCSS(settings);
-    const excluded = isExcluded(hostname, settings);
-    const inSchedule = !settings.scheduleEnabled || isInRange(settings);
-    const shouldApply = settings.enabled && !excluded && inSchedule;
+    const shouldApply = resolveShouldApply(settings, {
+        excluded: isExcluded(hostname, settings),
+        prefersDark,
+        inSchedule: isInRange(settings),
+    });
     return { settings, shouldApply, css };
 }
 
@@ -113,7 +116,7 @@ browser.runtime.onMessage.addListener(
         (async () => {
             switch (msg.type) {
                 case "getSettings":
-                    return handleGetSettings(msg.hostname);
+                    return handleGetSettings(msg.hostname, msg.prefersDark);
                 case "updateSettings":
                     await handleUpdateSettings(msg.changes);
                     return undefined;

@@ -3,6 +3,7 @@
 import type { GetSettingsResponse, MoonMessage } from "../shared/types";
 
 const STYLE_ID = "moon-eclipse-theme";
+const prefersDark = matchMedia("(prefers-color-scheme: dark)");
 
 function injectCSS(css: string): void {
   if (!css) return;
@@ -24,6 +25,7 @@ async function requestAndApply(retries = 0): Promise<void> {
     const response: GetSettingsResponse = await browser.runtime.sendMessage({
       type: "getSettings",
       hostname: location.hostname,
+      prefersDark: prefersDark.matches,
     } satisfies MoonMessage);
     if (response.shouldApply) {
       injectCSS(response.css);
@@ -40,6 +42,9 @@ async function requestAndApply(retries = 0): Promise<void> {
 
 // Apply on start
 requestAndApply();
+
+// React to OS light/dark switches (drives "Use system theme")
+prefersDark.addEventListener("change", () => requestAndApply());
 
 // Listen for background messages
 browser.runtime.onMessage.addListener((msg: MoonMessage) => {

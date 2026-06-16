@@ -1,6 +1,11 @@
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { isInRange, getNextTriggerTime } from "../src/background/scheduler";
+import {
+  isInRange,
+  getNextTriggerTime,
+  resolveShouldApply,
+} from "../src/background/scheduler";
+import { DEFAULTS } from "../src/shared/types";
 import type { MoonSettings } from "../src/shared/types";
 
 // Tests run with TZ=UTC (see scripts/test.mjs), so the faked clock hour
@@ -61,4 +66,48 @@ test("getNextTriggerTime stays on the same day when the time is ahead", () => {
   at(Date.UTC(2026, 0, 1, 5, 0));
   assert.equal(getNextTriggerTime("06:00"), Date.UTC(2026, 0, 1, 6, 0));
   mock.timers.reset();
+});
+
+// --- resolveShouldApply (pure gating logic) ---
+
+const ctx = (over: Partial<{ excluded: boolean; prefersDark: boolean; inSchedule: boolean }> = {}) => ({
+  excluded: false,
+  prefersDark: false,
+  inSchedule: false,
+  ...over,
+});
+
+test("master toggle off => never applies", () => {
+  assert.equal(
+    resolveShouldApply({ ...DEFAULTS, enabled: false }, ctx({ inSchedule: true })),
+    false,
+  );
+});
+
+test("excluded host => never applies", () => {
+  assert.equal(resolveShouldApply(DEFAULTS, ctx({ excluded: true })), false);
+});
+
+test("both modes off => always on when enabled", () => {
+  assert.equal(resolveShouldApply(DEFAULTS, ctx()), true);
+});
+
+test("follow system => mirrors prefersDark", () => {
+  const s = { ...DEFAULTS, followSystem: true };
+  assert.equal(resolveShouldApply(s, ctx({ prefersDark: true })), true);
+  assert.equal(resolveShouldApply(s, ctx({ prefersDark: false })), false);
+});
+
+test("schedule => mirrors inSchedule", () => {
+  const s = { ...DEFAULTS, scheduleEnabled: true };
+  assert.equal(resolveShouldApply(s, ctx({ inSchedule: true })), true);
+  assert.equal(resolveShouldApply(s, ctx({ inSchedule: false })), false);
+});
+
+test("follow system takes precedence over schedule", () => {
+  const s = { ...DEFAULTS, followSystem: true, scheduleEnabled: true };
+  assert.equal(
+    resolveShouldApply(s, ctx({ prefersDark: false, inSchedule: true })),
+    false,
+  );
 });

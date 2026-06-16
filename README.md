@@ -13,6 +13,7 @@ Moon Eclipse injects carefully crafted CSS rules to transform any website into a
 - One-click toggle from the popup
 - Customizable background and text colors with a built-in HSV picker and hex input
 - Per-site exclusion list with one-click domain add
+- Follow your OS light/dark setting automatically (macOS / Windows / Linux)
 - Daily schedule with overnight range support
 - Works instantly — no page flicker
 

@@ -38,6 +38,7 @@ const DEFAULTS: MoonSettings = {
   enabled: true,
   backgroundColor: "#0d0d12",
   textColor: "#d0d0d8",
+  followSystem: false,      // follow OS light/dark (mutually exclusive w/ schedule)
   scheduleEnabled: false,
   scheduleStart: "20:00",
   scheduleEnd: "06:00",     // overnight range by default
@@ -75,7 +76,7 @@ Ready-to-install folder — `release/`.
 Full message type union (`MoonMessage`):
 ```typescript
 type MoonMessage =
-  | { type: "getSettings"; hostname: string }   // Content Script → BG
+  | { type: "getSettings"; hostname: string; prefersDark: boolean } // Content Script → BG
   | { type: "updateSettings"; changes: Partial<MoonSettings> } // Popup → BG
   | { type: "toggle" }                           // Popup → BG
   | { type: "enable" }                           // BG → Content Scripts (broadcast)
@@ -117,12 +118,22 @@ Cache is **not** invalidated on schedule/exclusion changes — those only affect
 
 Rules cover: base (`html,body`), top bars (`header`, `nav`, `[role=banner|navigation]` — kept solid), text blocks & structural containers (transparent), tables, inputs, buttons, links, code, media (opacity 0.92), scrollbars, and `::selection`. Colors are validated as 6-digit hex (else fall back to `DEFAULTS`). All rules use `!important`.
 
+## When the theme applies (`resolveShouldApply`)
+
+`resolveShouldApply(settings, ctx)` in `scheduler.ts` is the single pure gate used by `handleGetSettings`. Precedence:
+1. `!enabled` or excluded host → never
+2. `followSystem` → mirror the OS `prefers-color-scheme` (`ctx.prefersDark`)
+3. `scheduleEnabled` → `isInRange()`
+4. otherwise → always on
+
+The content script reports `prefersDark` (its `matchMedia("(prefers-color-scheme: dark)").matches`) in every `getSettings` message and re-requests on the media query's `change` event, so OS light/dark switches apply live without a persistent background.
+
 ## Schedule
 
 - Alarms: `"schedule-on"` and `"schedule-off"` — fire daily at `scheduleStart`/`scheduleEnd`
 - `isInRange()` handles both same-day (e.g. 08:00–18:00) and overnight (e.g. 20:00–06:00) ranges
 - On alarm fire, broadcasts `"enable"`/`"disable"` and re-arms for next day
-- Alarms are cleared when `scheduleEnabled` is toggled off
+- Alarms are cleared when `scheduleEnabled` is toggled off (e.g. when "Use system theme" is enabled)
 
 ## Exclusion Logic
 
@@ -135,7 +146,7 @@ Rules cover: base (`html,body`), top bars (`header`, `nav`, `[role=banner|naviga
 
 The popup is the only UI (there is no separate options page). Renders 3 tabs:
 1. **Theme** — toggle (enabled/disabled), 2 colors (bg + text): a swatch opens an inline custom HSV picker (`color-picker.ts`), with a synced hex input, live preview, reset button
-2. **Schedule** — toggle, start/end time (HH:MM via numeric text inputs, select-on-focus), status text, 24-hour timeline
+2. **Schedule** — first a **Use system theme** toggle (follows OS light/dark via `prefers-color-scheme`), then **Enable Schedule** with start/end time (HH:MM numeric text inputs, select-on-focus), status text, 24-hour timeline. The two toggles are mutually exclusive (enabling one turns the other off); enabling system theme keeps the saved schedule times
 3. **Exclusions** — text input (pre-filled with the current domain) + Add button, list with × remove buttons
 
 Settings changes are debounced at **200ms** before sending to background.

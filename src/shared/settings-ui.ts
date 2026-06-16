@@ -139,6 +139,15 @@ function buildHTML(): string {
     <!-- === Schedule Tab === -->
     <div class="tab-panel" data-panel="schedule">
       <div class="toggle-row">
+        <span class="toggle-label">Use system theme</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-system">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="placeholder-text" style="margin:-4px 0 14px">Follows your OS light/dark setting</div>
+
+      <div class="toggle-row">
         <span class="toggle-label">Enable Schedule</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-schedule">
@@ -204,14 +213,34 @@ function bindEvents(container: HTMLElement): void {
         sendMessage({ type: "toggle" });
     });
 
-    // Toggle: Schedule
     const toggleSchedule = container.querySelector(
         "#toggle-schedule",
     ) as HTMLInputElement;
+    const toggleSystem = container.querySelector(
+        "#toggle-system",
+    ) as HTMLInputElement;
+
+    // Toggle: Use system theme (mutually exclusive with Schedule)
+    toggleSystem?.addEventListener("change", () => {
+        const on = toggleSystem.checked;
+        const changes: Partial<MoonSettings> = { followSystem: on };
+        if (on && toggleSchedule) {
+            // Turn schedule off but keep its saved times (don't send them).
+            toggleSchedule.checked = false;
+            container
+                .querySelector("#schedule-editor")
+                ?.classList.add("moon-hidden");
+            changes.scheduleEnabled = false;
+        }
+        applySettings(container, changes);
+    });
+
+    // Toggle: Schedule (mutually exclusive with Use system theme)
     toggleSchedule?.addEventListener("change", () => {
         const enabled = toggleSchedule.checked;
         const editor = container.querySelector("#schedule-editor")!;
         editor.classList.toggle("moon-hidden", !enabled);
+        if (enabled && toggleSystem) toggleSystem.checked = false;
         updateScheduleSettings(container);
     });
 
@@ -386,11 +415,14 @@ function updateScheduleSettings(container: HTMLElement): void {
     // Batch all schedule fields in one debounced update
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        applySettings(container, {
+        const changes: Partial<MoonSettings> = {
             scheduleStart: start,
             scheduleEnd: end,
             scheduleEnabled: enabled,
-        });
+        };
+        // Schedule and "follow system" are mutually exclusive.
+        if (enabled) changes.followSystem = false;
+        applySettings(container, changes);
     }, 200);
 }
 
@@ -457,7 +489,12 @@ async function refreshUI(container: HTMLElement): Promise<void> {
         preview.style.color = s.textColor;
     }
 
-    // Schedule
+    // Schedule / system
+    const toggleSystem = container.querySelector(
+        "#toggle-system",
+    ) as HTMLInputElement;
+    if (toggleSystem) toggleSystem.checked = s.followSystem;
+
     const toggleSchedule = container.querySelector(
         "#toggle-schedule",
     ) as HTMLInputElement;
@@ -480,7 +517,13 @@ async function refreshUI(container: HTMLElement): Promise<void> {
     // Schedule status
     const statusEl = container.querySelector("#schedule-status") as HTMLElement;
     if (statusEl) {
-        if (!s.scheduleEnabled) {
+        if (s.followSystem) {
+            const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+            statusEl.textContent = dark
+                ? "System is dark — theme active"
+                : "System is light — theme off";
+            statusEl.classList.toggle("active", dark);
+        } else if (!s.scheduleEnabled) {
             statusEl.textContent = "Schedule is disabled";
             statusEl.classList.remove("active");
         } else if (isInRange(s)) {

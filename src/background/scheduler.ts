@@ -2,6 +2,27 @@
 
 import { MoonSettings } from "../shared/types";
 
+export interface ApplyContext {
+  excluded: boolean; // hostname is on the exclusion list
+  prefersDark: boolean; // OS reports a dark color scheme
+  inSchedule: boolean; // current time is inside the schedule range
+}
+
+/**
+ * Decide whether the dark theme should be applied right now. Pure function so
+ * the gating logic is unit-testable. Precedence: master toggle and exclusions
+ * win first, then "follow system", then schedule, else always on.
+ */
+export function resolveShouldApply(
+  settings: MoonSettings,
+  ctx: ApplyContext,
+): boolean {
+  if (!settings.enabled || ctx.excluded) return false;
+  if (settings.followSystem) return ctx.prefersDark;
+  if (settings.scheduleEnabled) return ctx.inSchedule;
+  return true;
+}
+
 /**
  * Parse "HH:MM" into a Date for the next occurrence of that time.
  */
