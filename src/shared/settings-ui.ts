@@ -139,13 +139,12 @@ function buildHTML(): string {
     <!-- === Schedule Tab === -->
     <div class="tab-panel" data-panel="schedule">
       <div class="toggle-row">
-        <span class="toggle-label">Use system theme</span>
+        <span class="toggle-label">Use System Theme</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-system">
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <div class="placeholder-text" style="margin:-4px 0 14px">Follows your OS light/dark setting</div>
 
       <div class="toggle-row">
         <span class="toggle-label">Enable Schedule</span>
